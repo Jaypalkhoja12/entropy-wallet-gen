@@ -2,15 +2,20 @@ import os
 import ecdsa
 import requests
 import threading
+import time
 from Crypto.Hash import keccak
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-# 🔐 Replace with your real Etherscan API Key
+# 🔐 Use your real API key from https://etherscan.io/myapikey
 ETHERSCAN_API_KEY = "T8CBX522QWT371GI8PYWRNCA1XXWZPEPPT"
 
-# Global flag and lock
 found = False
 lock = threading.Lock()
+counter = 0
+
+# Force flush all prints so Render shows them
+import builtins
+print = lambda *args, **kwargs: builtins.print(*args, flush=True, **kwargs)
 
 def generate_wallet():
     pk = os.urandom(32).hex()
@@ -40,13 +45,17 @@ def check_balance(pk, address):
                         with open("eth_jackpot_found.txt", "w") as f:
                             f.write(f"Address: {address}\nPrivate Key: {pk}\nBalance: {balance:.6f} ETH\n")
                         os._exit(0)
-    except Exception:
+    except Exception as e:
         pass
 
 def worker():
+    global counter
     while not found:
         pk, addr = generate_wallet()
         check_balance(pk, addr)
+        counter += 1
+        if counter % 1000 == 0:
+            print(f"🔁 Scanned {counter} wallets...")
 
 def run_scanner(threads=20):
     for _ in range(threads):
@@ -54,23 +63,24 @@ def run_scanner(threads=20):
         t.daemon = True
         t.start()
 
-# 🌐 Fake Web Server for Render Port Binding
+# Fake HTTP server to keep Render Web Service alive
 class KeepAliveHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Harpy ETH Scanner is running...")
+        self.wfile.write(b"🚀 Harpy ETH Scanner is running...")
 
 def start_web_server():
     server = HTTPServer(('0.0.0.0', 10000), KeepAliveHandler)
-    print("🌐 Fake HTTP server started on port 10000 to keep Render happy")
+    print("🌐 Web port 10000 bound to keep Render happy.")
     server.serve_forever()
 
 if __name__ == "__main__":
-    print("🚀 Harpy ETH Brute Scanner Started")
+    print("🚀 Starting Harpy ETH Brute Scanner...")
     run_scanner(threads=20)
     web_thread = threading.Thread(target=start_web_server)
     web_thread.daemon = True
     web_thread.start()
     while True:
-        pass  # Keep main thread alive
+        time.sleep(30)
+        print(f"✅ Scanner still running... Checked {counter} wallets")
