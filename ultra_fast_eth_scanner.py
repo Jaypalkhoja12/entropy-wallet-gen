@@ -2,11 +2,13 @@ import os
 import ecdsa
 import requests
 import threading
-import time
 from Crypto.Hash import keccak
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
+# 🔐 Replace with your real Etherscan API Key
 ETHERSCAN_API_KEY = "T8CBX522QWT371GI8PYWRNCA1XXWZPEPPT"
 
+# Global flag and lock
 found = False
 lock = threading.Lock()
 
@@ -31,29 +33,44 @@ def check_balance(pk, address):
                 with lock:
                     if not found:
                         found = True
-                        print(f"🎯 MATCH FOUND!")
+                        print("🎯 MATCH FOUND!")
                         print(f"Address: {address}")
                         print(f"Private Key: {pk}")
-                        print(f"Balance: {balance} ETH")
+                        print(f"Balance: {balance:.6f} ETH")
                         with open("eth_jackpot_found.txt", "w") as f:
-                            f.write(f"Address: {address}\nPrivate Key: {pk}\nBalance: {balance} ETH\n")
+                            f.write(f"Address: {address}\nPrivate Key: {pk}\nBalance: {balance:.6f} ETH\n")
                         os._exit(0)
     except Exception:
         pass
 
 def worker():
     while not found:
-        pk, address = generate_wallet()
-        check_balance(pk, address)
+        pk, addr = generate_wallet()
+        check_balance(pk, addr)
 
-def main():
-    threads = []
-    for _ in range(20):  # Launch 20 threads for fast processing
+def run_scanner(threads=20):
+    for _ in range(threads):
         t = threading.Thread(target=worker)
+        t.daemon = True
         t.start()
-        threads.append(t)
-    for t in threads:
-        t.join()
+
+# 🌐 Fake Web Server for Render Port Binding
+class KeepAliveHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Harpy ETH Scanner is running...")
+
+def start_web_server():
+    server = HTTPServer(('0.0.0.0', 10000), KeepAliveHandler)
+    print("🌐 Fake HTTP server started on port 10000 to keep Render happy")
+    server.serve_forever()
 
 if __name__ == "__main__":
-    main()
+    print("🚀 Harpy ETH Brute Scanner Started")
+    run_scanner(threads=20)
+    web_thread = threading.Thread(target=start_web_server)
+    web_thread.daemon = True
+    web_thread.start()
+    while True:
+        pass  # Keep main thread alive
