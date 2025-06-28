@@ -1,0 +1,6 @@
+services:
+  - type: worker
+    name: harpy-eth-scanner
+    env: python
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "python ultra_fast_eth_scanner.py"
